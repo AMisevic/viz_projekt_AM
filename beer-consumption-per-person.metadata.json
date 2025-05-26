@@ -1,0 +1,34 @@
+{
+  "chart": {
+    "title": "Beer consumption per person",
+    "subtitle": "Average annual per capita beer consumption, measured in liters of pure alcohol.\nBeer contains around 5% of pure alcohol per volume so that one liter of beer contains 0.05 liters of pure alcohol. This means that 5 liters of pure alcohol equals 100 liters of beer.",
+    "citation": "World Health Organization - Global Health Observatory (2024)",
+    "originalChartUrl": "https://ourworldindata.org/grapher/beer-consumption-per-person?v=1&csvType=full&useColumnShortNames=false",
+    "selection": [
+      "India",
+      "Belize",
+      "Iraq",
+      "United States",
+      "Germany"
+    ]
+  },
+  "columns": {
+    "Alcohol, recorded per capita (15+) consumption (in litres of pure alcohol) - Beverage types: Beer": {
+      "titleShort": "Alcohol, recorded per capita (15+) consumption (in litres of pure alcohol) - Beverage types: Beer",
+      "titleLong": "Alcohol, recorded per capita (15+) consumption (in litres of pure alcohol) - Beverage types: Beer",
+      "descriptionShort": "Recorded APC is defined as the recorded amount of alcohol consumed per capita (15+ years) over a calendar year in a country, in litres of pure alcohol. The indicator only takes into account the consumption which is recorded from production, import, export, and sales data often via taxation. Numerator: The amount of recorded alcohol consumed per capita (15+ years) during a calendar year, in litres of pure alcohol. Denominator: Midyear resident population (15+ years) for the same calendar year, UN World Population Prospects, medium variant.",
+      "unit": "rate",
+      "timespan": "1960-2019",
+      "type": "Numeric",
+      "owidVariableId": 821937,
+      "shortName": "alcohol__recorded_per_capita__15plus__consumption__in_litres_of_pure_alcohol__beverage_types_beer",
+      "lastUpdated": "2024-01-03",
+      "nextUpdate": "2025-06-20",
+      "citationShort": "World Health Organization - Global Health Observatory (2024) – processed by Our World in Data",
+      "citationLong": "World Health Organization - Global Health Observatory (2024) – processed by Our World in Data. “Alcohol, recorded per capita (15+) consumption (in litres of pure alcohol) - Beverage types: Beer” [dataset]. World Health Organization, “Global Health Observatory” [original data].",
+      "fullMetadata": "https://api.ourworldindata.org/v1/indicators/821937.metadata.json"
+    }
+  },
+  "dateDownloaded": "2025-05-20",
+  "activeFilters": {}
+}

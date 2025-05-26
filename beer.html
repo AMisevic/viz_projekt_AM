@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Beer Consumption Map</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body { margin: 0; font-family: sans-serif; }
+    svg { width: 100vw; height: 95vh; display: block; }
+    #tooltip {
+      position: absolute;
+      background: white;
+      border: 1px solid #999;
+      padding: 5px 10px;
+      font-size: 12px;
+      border-radius: 4px;
+      pointer-events: none;
+      opacity: 0;
+    }
+    #controls {
+      margin: 10px;
+      font-size: 14px;
+    }
+    .country {
+      stroke: #333;
+      stroke-width: 0.5;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <label for="yearSlider">Year: <span id="yearLabel"></span></label>
+    <input type="range" id="yearSlider" min="1961" max="2019" value="2020" step="1" />
+  </div>
+  <svg></svg>
+  <div id="tooltip"></div>
+
+  <script>
+    const svg = d3.select("svg");
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const tooltip = d3.select("#tooltip");
+
+    const projection = d3.geoMercator()
+      .scale(160)
+      .translate([width / 2, height / 1.5]);
+
+    const path = d3.geoPath().projection(projection);
+
+    let beerDataByYear = {};
+    const colorScale = d3.scaleSequential(d3.interpolateOranges)
+                         .domain([0, 150]); // Adjust max based on real data
+
+    const yearSlider = d3.select("#yearSlider");
+    const yearLabel = d3.select("#yearLabel");
+
+    Promise.all([
+      d3.json("https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson"),
+      d3.csv("beer-consumption-per-person.csv")
+    ]).then(([geoData, beerData]) => {
+      console.log(beerData.slice(0, 5));
+      
+
+      beerData.forEach(d => {
+        const country = d.Entity;
+        const year = +d.Year;
+        const value = +d.BeerValue;
+
+        if (!beerDataByYear[year]) beerDataByYear[year] = {};
+        beerDataByYear[year][country] = value;
+      });
+
+      console.log("beerDataByYear example:", beerDataByYear[2001]); 
+
+      const countries = geoData.features;
+
+      const g = svg.append("g");
+
+      const paths = g.selectAll("path")
+        .data(countries)
+        .join("path")
+        .attr("class", "country")
+        .attr("d", path)
+        .on("mouseover", function (event, d) {
+          const name = d.properties.name;
+          const year = yearSlider.property("value");
+          const data = beerDataByYear[year]?.[name];
+          tooltip
+            .style("opacity", 1)
+            .html(`<strong>${name}</strong><br/>Beer: ${data ? data : "N/A"} L`);
+        })
+        .on("mousemove", function (event) {
+          tooltip.style("left", (event.pageX + 10) + "px")
+                 .style("top", (event.pageY - 20) + "px");
+        })
+        .on("mouseout", function () {
+          tooltip.style("opacity", 0);
+        });
+
+      function updateMap(year) {
+        yearLabel.text(year);
+        paths.transition().duration(500)
+          .attr("fill", d => {
+            const val = beerDataByYear[year]?.[d.properties.name];
+            return val ? colorScale(val) : "#ccc";
+          });
+      }
+
+      yearSlider.on("input", function () {
+        updateMap(this.value);
+      });
+
+      updateMap(yearSlider.property("value"));
+    });
+  </script>
+</body>
+</html>
