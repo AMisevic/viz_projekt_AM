@@ -31,7 +31,17 @@
 <body>
   <div id="controls">
     <label for="yearSlider">Year: <span id="yearLabel"></span></label>
-    <input type="range" id="yearSlider" min="1961" max="2019" value="2020" step="1" />
+    <input type="range" id="yearSlider" min="1960" max="2019" value="2019" step="1" />
+    <label for="regionSelect">Region:</label>
+    <select id="regionSelect">
+      <option value="World">World</option>
+      <option value="Africa">Africa</option>
+      <option value="Asia">Asia</option>
+      <option value="Europe">Europe</option>
+      <option value="North America">North America</option>
+      <option value="South America">South America</option>
+      <option value="Oceania">Oceania</option>
+    </select>
   </div>
   <svg></svg>
   <div id="tooltip"></div>
@@ -48,20 +58,44 @@
 
     const path = d3.geoPath().projection(projection);
 
+    const regionZoom = {
+      "World": { scale: 160, center: [0, 20] },
+      "Africa": { scale: 400, center: [20, 0] },
+      "Asia": { scale: 300, center: [100, 30] },
+      "Europe": { scale: 500, center: [20, 50] },
+      "North America": { scale: 300, center: [-100, 40] },
+      "South America": { scale: 350, center: [-60, -15] },
+      "Oceania": { scale: 400, center: [140, -25] }  
+    };
+
+    const colorScale = d3.scaleLinear()
+      .domain([0, 2, 4, 6, 8, 10])
+      .range([
+        "#f9f871", // Lager
+        "#f6e27f", // Pilsner
+        "#f5b041", // Pale Ale
+        "#d35400", // IPA
+        "#a04000", // Amber
+        "#3e2723", // Stout 
+      ]);
+
     let beerDataByYear = {};
-    const colorScale = d3.scaleSequential(d3.interpolateOranges)
-                         .domain([0, 150]); // Adjust max based on real data
 
     const yearSlider = d3.select("#yearSlider");
     const yearLabel = d3.select("#yearLabel");
+
+    const nameMap = {
+      "United States of America": "United States",
+      "USA": "United States", 
+      "England": "United Kingdom", 
+    }
 
     Promise.all([
       d3.json("https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson"),
       d3.csv("beer-consumption-per-person.csv")
     ]).then(([geoData, beerData]) => {
-      console.log(beerData.slice(0, 5));
+      //console.log(beerData.slice(0, 5));
       
-
       beerData.forEach(d => {
         const country = d.Entity;
         const year = +d.Year;
@@ -71,7 +105,7 @@
         beerDataByYear[year][country] = value;
       });
 
-      console.log("beerDataByYear example:", beerDataByYear[2001]); 
+      //console.log("beerDataByYear example:", beerDataByYear[2001]); 
 
       const countries = geoData.features;
 
@@ -83,9 +117,13 @@
         .attr("class", "country")
         .attr("d", path)
         .on("mouseover", function (event, d) {
-          const name = d.properties.name;
+          const rawName = d.properties.name;
+          const name = nameMap[rawName] ||rawName;
           const year = yearSlider.property("value");
           const data = beerDataByYear[year]?.[name];
+
+          //console.log("Hovering:", rawName, "->", name, "->", data);
+
           tooltip
             .style("opacity", 1)
             .html(`<strong>${name}</strong><br/>Beer: ${data ? data : "N/A"} L`);
@@ -98,11 +136,14 @@
           tooltip.style("opacity", 0);
         });
 
+      updateMap(yearSlider.property("value"))
+
       function updateMap(year) {
         yearLabel.text(year);
         paths.transition().duration(500)
           .attr("fill", d => {
-            const val = beerDataByYear[year]?.[d.properties.name];
+            const name = nameMap[d.properties.name] || d.properties.name;
+            const val = beerDataByYear[year]?.[name];
             return val ? colorScale(val) : "#ccc";
           });
       }
@@ -111,7 +152,35 @@
         updateMap(this.value);
       });
 
-      updateMap(yearSlider.property("value"));
+      d3.select("#regionSelect").on("change", function () {
+        const region = this.value;
+        const zoom = regionZoom[region];
+
+        const oldScale = projection.scale();
+        const oldCenter = projection.center();
+
+        const newScale = zoom.scale;
+        const newCenter = zoom.center;
+
+        const interpolateScale = d3.interpolateNumber(oldScale, newScale);
+        const interpolateCenter = d3.interpolateArray(oldCenter, newCenter);
+
+        d3.transition()
+          .duration(1000)
+          .tween("zoom", () => {
+            return function (t) {
+              projection
+                .scale(interpolateScale(t))
+                .center(interpolateCenter(t))
+                .translate([width / 2, height / 2]);
+
+              const newPath = d3.geoPath().projection(projection);
+              g.selectAll("path").attr("d", newPath);
+            };
+          });
+
+        updateMap(yearSlider.property("value"));
+      });
     });
   </script>
 </body>
