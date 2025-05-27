@@ -2,54 +2,59 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Beer Consumption Map</title>
+  <title>Beer consumption in the World over the years</title>
   <script src="https://d3js.org/d3.v7.min.js"></script>
-  <style>
-    body { margin: 0; font-family: sans-serif; }
-    svg { width: 100vw; height: 95vh; display: block; }
-    #tooltip {
-      position: absolute;
-      background: white;
-      border: 1px solid #999;
-      padding: 5px 10px;
-      font-size: 12px;
-      border-radius: 4px;
-      pointer-events: none;
-      opacity: 0;
-    }
-    #controls {
-      margin: 10px;
-      font-size: 14px;
-    }
-    .country {
-      stroke: #333;
-      stroke-width: 0.5;
-      cursor: pointer;
-    }
-  </style>
+  <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
-  <div id="controls">
-    <label for="yearSlider">Year: <span id="yearLabel"></span></label>
-    <input type="range" id="yearSlider" min="1960" max="2019" value="2019" step="1" />
-    <label for="regionSelect">Region:</label>
-    <select id="regionSelect">
-      <option value="World">World</option>
-      <option value="Africa">Africa</option>
-      <option value="Asia">Asia</option>
-      <option value="Europe">Europe</option>
-      <option value="North America">North America</option>
-      <option value="South America">South America</option>
-      <option value="Oceania">Oceania</option>
-    </select>
+  <header>
+    <h1>Beer consumption in the World over the years</h1>
+  </header>
+
+  <div id="content">
+    <div id="main-content">
+      <div id="controls">
+        <div class="control-group">
+          <label for="yearSlider">Year: <span id="yearLabel"></span></label>
+          <input type="range" id="yearSlider" min="1960" max="2019" value="2019" step="1" />
+        </div>
+        <div class="control-group">
+          <label for="regionSelect">Region:</label>
+          <select id="regionSelect">
+            <option value="World">World</option>
+            <option value="Africa">Africa</option>
+            <option value="Asia">Asia</option>
+            <option value="Europe">Europe</option>
+            <option value="North America">North America</option>
+            <option value="South America">South America</option>
+            <option value="Oceania">Oceania</option>
+          </select>
+        </div>
+      </div>
+      <svg></svg>
+      <div id="tooltip"></div>
+    </div>
+
+    <div id="side-panel">
+      <!-- Prostor za dodatne prikaze -->
+    </div>
   </div>
-  <svg></svg>
-  <div id="tooltip"></div>
+
+  <footer>
+    <p id="description">
+        This segment is meant to give further information about what is being shown on the page. As the title states we are looking at beer consumption in the world over the years. The data being 
+        shown on the map is in liters, but it does not mean liters of beer but instead liters of pure alcohol consumed in form of beer. This in other words means that 1L on the map corelates to 20L
+        of beer. The map itself shows annual or in other words yearly consumption of beer per capita, in other words by a single person. 
+    </p>
+  </footer>
+  
 
   <script>
     const svg = d3.select("svg");
-    const width = window.innerWidth;
-    const height = window.innerHeight;
+    const svgNode = svg.node();
+    const width = svgNode.getBoundingClientRect().width;
+    const height = svgNode.getBoundingClientRect().height;
     const tooltip = d3.select("#tooltip");
 
     const projection = d3.geoMercator()
