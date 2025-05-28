@@ -85,3 +85,22 @@ footer {
   stroke-width: 0.5;
   cursor: pointer;
 }
+
+.country.selected {
+  stroke: red;
+  stroke-width: 1.5;
+}
+
+#side-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 10px; /* space between barplot and piechart */
+  text-align: center;
+}
+
+#side-panel svg {
+  flex: 1; /* each svg takes equal share of available height */
+  width: 100%;
+  vertical-align: middle;
+}

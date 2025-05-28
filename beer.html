@@ -37,7 +37,10 @@
     </div>
 
     <div id="side-panel">
-      <!-- Prostor za dodatne prikaze -->
+      <h2>Top consumers for the year</h2>
+      <svg id="world-barplot"></svg>
+      <h2>Consumption ranges</h2>
+      <svg id="consumption-piechart"></svg>
     </div>
   </div>
 
@@ -57,6 +60,9 @@
     const height = svgNode.getBoundingClientRect().height;
     const tooltip = d3.select("#tooltip");
 
+    let selectedCountry = null;
+    let currentRegion = "World";
+
     const projection = d3.geoMercator()
       .scale(160)
       .translate([width / 2, height / 1.5]);
@@ -74,7 +80,8 @@
     };
 
     const colorScale = d3.scaleLinear()
-      .domain([0, 2, 4, 6, 8, 10])
+      //alternativna domena je [0, 2, 4, 6, 8, 10] iako mislim da je trenutna malo bolja u svrhu prikaza
+      .domain([0, 1, 3, 5, 7, 9])
       .range([
         "#f9f871", // Lager
         "#f6e27f", // Pilsner
@@ -93,6 +100,11 @@
       "United States of America": "United States",
       "USA": "United States", 
       "England": "United Kingdom", 
+      "Republic of the Congo": "Congo",
+      "Democratic Republic of the Congo": "Democratic Republic of Congo",
+      "Ivory Coast": "Cote d'Ivoire",
+      "United Republic of Tanzania": "Tanzania",
+      "Guinea Bissau": "Guinea-Bissau"
     }
 
     Promise.all([
@@ -123,7 +135,7 @@
         .attr("d", path)
         .on("mouseover", function (event, d) {
           const rawName = d.properties.name;
-          const name = nameMap[rawName] ||rawName;
+          const name = nameMap[rawName] || rawName;
           const year = yearSlider.property("value");
           const data = beerDataByYear[year]?.[name];
 
@@ -139,9 +151,56 @@
         })
         .on("mouseout", function () {
           tooltip.style("opacity", 0);
+        })
+        .on("click", function (event, d) {
+          const rawName = d.properties.name;
+          const name = nameMap[rawName] || rawName;
+
+          if (selectedCountry === name) {
+            // Clicking again on the same country: reset to region/world
+            selectedCountry = null;
+            const zoom = regionZoom[currentRegion];
+
+            projection
+              .scale(zoom.scale)
+              .center(zoom.center)
+              .translate([width / 2, height / 2]);
+
+            const newPath = d3.geoPath().projection(projection);
+            g.selectAll("path").transition().duration(750).attr("d", newPath);
+
+            g.transition().duration(750).attr("transform", null);
+
+            //console.log("Unselected country, returning to region:", currentRegion);
+          } else {
+            selectedCountry = name;
+
+            const [[x0, y0], [x1, y1]] = path.bounds(d);
+            const dx = x1 - x0;
+            const dy = y1 - y0;
+            const x = (x0 + x1) / 2;
+            const y = (y0 + y1) / 2;
+
+            const scale = Math.min(8, 0.9 / Math.max(dx / width, dy / height));
+            const translate = [width / 2 - scale * x, height / 2 - scale * y];
+
+            g.transition().duration(750)
+              .attr("transform", `translate(${translate}) scale(${scale})`);
+
+            //console.log("Selected country:", selectedCountry);
+          }
+
+          g.selectAll("path").classed("selected", d2 => {
+            const name2 = nameMap[d2.properties.name] || d2.properties.name;
+            return name2 === selectedCountry;
+          })
         });
 
       updateMap(yearSlider.property("value"))
+      if(currentRegion == "World"){
+        updateWorldGraphs(yearSlider.property("value"));
+        updateConsumptionPieChart(yearSlider.property("value"));
+      }
 
       function updateMap(year) {
         yearLabel.text(year);
@@ -153,12 +212,127 @@
           });
       }
 
+      function updateWorldGraphs(year) {
+        const svg = d3.select("#world-barplot");
+        svg.selectAll("*").remove(); // Clear previous graph
+
+        const margin = { top: 20, right: 30, bottom: 40, left: 100 };
+        const width = svg.node().getBoundingClientRect().width - margin.left - margin.right;
+        const height = svg.node().getBoundingClientRect().height - margin.top - margin.bottom;
+
+        const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+        // Get beer data for the year
+        const yearData = beerDataByYear[year];
+        if (!yearData) return;
+
+        const data = Object.entries(yearData)
+          .map(([country, value]) => ({ country, value }))
+          .filter(d => d.value != null && !isNaN(d.value))
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 10);
+
+        const x = d3.scaleLinear()
+          .domain([0, d3.max(data, d => d.value)])
+          .range([0, width]);
+
+        const y = d3.scaleBand()
+          .domain(data.map(d => d.country))
+          .range([0, height])
+          .padding(0.1);
+
+        g.append("g")
+          .call(d3.axisLeft(y));
+
+        g.append("g")
+          .attr("transform", `translate(0,${height})`)
+          .call(d3.axisBottom(x).ticks(5));
+
+        g.selectAll("rect")
+          .data(data)
+          .join("rect")
+          .attr("x", 0)
+          .attr("y", d => y(d.country))
+          .attr("width", d => x(d.value))
+          .attr("height", y.bandwidth())
+          .attr("fill", "#a04000"); // Nice amber beer tone
+      }  
+      
+      function updateConsumptionPieChart(year) {
+        const svg = d3.select("#consumption-piechart");
+        svg.selectAll("*").remove(); // Clear previous chart
+
+        const margin = { top: 20, right: 20, bottom: 20, left: 20 };
+        const width = svg.node().getBoundingClientRect().width - margin.left - margin.right;
+        const height = svg.node().getBoundingClientRect().height - margin.top - margin.bottom;
+        const radius = Math.min(width, height) / 2;
+
+        const g = svg.append("g")
+          .attr("transform", `translate(${margin.left + width / 2},${margin.top + height / 2})`);
+
+        const yearData = beerDataByYear[year];
+        if (!yearData) return;
+
+        const ranges = [
+          { label: "< 1L", min: 0, max: 1 },
+          { label: "1L - 3L", min: 1, max: 3 },
+          { label: "3L - 5L", min: 3, max: 5 },
+          { label: "> 5L", min: 5, max: Infinity }
+        ];
+
+        const counts = ranges.map(range => ({
+          label: range.label,
+          count: Object.values(yearData).filter(v => v >= range.min && v < range.max).length
+        }));
+
+        const color = d3.scaleOrdinal()
+          .domain(ranges.map(d => d.label))
+          .range(["#f9f871", "#f5b041", "#d35400", "#3e2723"]);
+
+        const pie = d3.pie()
+          .value(d => d.count);
+
+        const arc = d3.arc()
+          .innerRadius(0)
+          .outerRadius(radius);
+
+        const outerArc = d3.arc()
+          .innerRadius(radius * 1.05)
+          .outerRadius(radius * 1.05);
+
+        const arcs = g.selectAll("arc")
+          .data(pie(counts))
+          .join("g")
+          .attr("class", "arc");
+
+        arcs.append("path")
+          .attr("d", arc)
+          .attr("fill", d => color(d.data.label));
+
+        arcs.append("text")
+          .attr("transform", d => {
+            const pos = outerArc.centroid(d);
+            pos[0] = pos[0] > 0 ? pos[0] + 10 : pos[0] - 10;
+            return `translate(${pos})`;
+          })
+          .attr("text-anchor", d => outerArc.centroid(d)[0] > 0 ? "start" : "end")
+          .attr("font-size", "12px")
+          .attr("fill", "#222")
+          .text(d => `${d.data.label}: ${d.data.count}`); // kao što je viljivo ne radi se o postotku nego o konkretnom broju naspram ukupno država
+      }
+
       yearSlider.on("input", function () {
         updateMap(this.value);
+        if(!selectedCountry && currentRegion === "World"){
+          updateWorldGraphs(this.value);
+          updateConsumptionPieChart(this.value);
+        }
       });
 
       d3.select("#regionSelect").on("change", function () {
+        selectedCountry = null;
         const region = this.value;
+        currentRegion = region;
         const zoom = regionZoom[region];
 
         const oldScale = projection.scale();
@@ -185,6 +359,13 @@
           });
 
         updateMap(yearSlider.property("value"));
+        if(region === "World"){
+          updateWorldGraphs(yearSlider.property("value"));
+          updateConsumptionPieChart(yearSlider.property("value"))
+        } else {
+          d3.select("#world-barplot").selectAll("*").remove();
+          d3.select("#consumption-piechart").selectAll("*").remove();
+        }
       });
     });
   </script>
