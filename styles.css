@@ -71,10 +71,12 @@ svg {
   border-radius: 4px;
   pointer-events: none;
   opacity: 0;
+  transition: opacity 0.3s;
 }
 
 footer {
-  padding: 10px 20px;
+  margin-top: 20px;
+  padding: 5px 5px;
   font-size: 14px;
   background-color: #f9f9f9;
   border-top: 1px solid #ccc;
@@ -99,8 +101,17 @@ footer {
   text-align: center;
 }
 
+#side-panel > * {
+  height: 50%;
+}
+
 #side-panel svg {
   flex: 1; /* each svg takes equal share of available height */
   width: 100%;
   vertical-align: middle;
+}
+
+#side-panel h2 {
+  margin: 5px 0;
+  font-size: 20px;
 }
