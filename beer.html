@@ -37,11 +37,11 @@
     </div>
 
     <div id="side-panel">
-      <div id="world-barplot-container">
-        <svg id="world-barplot"></svg>
+      <div id="first-graph-container">
+        <svg id="first-graph"></svg>
       </div>
-      <div id="world-piechart-container">
-        <svg id="consumption-piechart"></svg>
+      <div id="second-graph-container">
+        <svg id="second-graph"></svg>
       </div>
     </div>
   </div>
@@ -93,8 +93,6 @@
         "#3e2723", // Stout 
       ]);
 
-    let beerDataByYear = {};
-
     const yearSlider = d3.select("#yearSlider");
     const yearLabel = d3.select("#yearLabel");
 
@@ -106,22 +104,65 @@
       "Democratic Republic of the Congo": "Democratic Republic of Congo",
       "Ivory Coast": "Cote d'Ivoire",
       "United Republic of Tanzania": "Tanzania",
-      "Guinea Bissau": "Guinea-Bissau"
+      "Guinea Bissau": "Guinea-Bissau",
+      "Czech Republic": "Czechia",
+      "Republic of Serbia": "Serbia",
+      "Macedonia": "North Macedonia",
     }
+
+    const regions = {
+      "Europe": ["ALB", "AND", "AUT", "BLR", "BEL", "BIH", "BGR", "HRV", "CYP", "CZE",
+                  "DNK", "EST", "FIN", "FRA", "DEU", "GRC", "HUN", "ISL", "IRL", "ITA",
+                  "LVA", "LIE", "LTU", "LUX", "MLT", "MDA", "MCO", "MNE", "NLD", "MKD",
+                  "NOR", "POL", "PRT", "ROU", "RUS", "SMR", "SRB", "SVK", "SVN", "ESP",
+                  "SWE", "CHE", "UKR", "GBR", "VAT"],
+
+      "Asia": ["AFG", "ARM", "AZE", "BHR", "BGD", "BTN", "BRN", "KHM", "CHN", "CYP",
+              "GEO", "IND", "IDN", "IRN", "IRQ", "ISR", "JPN", "JOR", "KAZ", "KWT",
+              "KGZ", "LAO", "LBN", "MYS", "MDV", "MNG", "MMR", "NPL", "PRK", "OMN",
+              "PAK", "PSE", "PHL", "QAT", "SAU", "SGP", "KOR", "LKA", "SYR", "TWN",
+              "TJK", "THA", "TUR", "TKM", "ARE", "UZB", "VNM", "YEM"],
+
+      "Africa": ["DZA", "AGO", "BEN", "BWA", "BFA", "BDI", "CMR", "CPV", "CAF", "TCD",
+                "COM", "COG", "CIV", "COD", "DJI", "EGY", "GNQ", "ERI", "SWZ", "ETH",
+                "GAB", "GMB", "GHA", "GIN", "GNB", "KEN", "LSO", "LBR", "LBY", "MDG",
+                "MWI", "MLI", "MRT", "MUS", "MYT", "MAR", "MOZ", "NAM", "NER", "NGA",
+                "RWA", "STP", "SEN", "SYC", "SLE", "SOM", "ZAF", "SSD", "SDN", "TZA",
+                "TGO", "TUN", "UGA", "ZMB", "ZWE"],
+
+      "North America": ["BLZ", "CAN", "CRI", "CUB", "DOM", "SLV", "GTM", "HTI", "HND",
+                        "JAM", "MEX", "NIC", "PAN", "USA", "TTO", "BRB", "BHS", "GRD",
+                        "KNA", "LCA", "VCT", "DMA", "ATG"],
+
+      "South America": ["ARG", "BOL", "BRA", "CHL", "COL", "ECU", "GUY", "PRY", "PER",
+                        "SUR", "URY", "VEN"],
+
+      "Oceania": ["AUS", "FJI", "KIR", "MHL", "FSM", "NRU", "NZL", "PLW", "PNG", "WSM",
+                  "SLB", "TON", "TUV", "VUT"]
+    };
+
+    let beerDataByYear = {};
+    let beerDataRaw = [];
 
     Promise.all([
       d3.json("https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson"),
       d3.csv("beer-consumption-per-person.csv")
     ]).then(([geoData, beerData]) => {
-      //console.log(beerData.slice(0, 5));
-      
-      beerData.forEach(d => {
+      beerDataRaw = beerData.map(d => {
         const country = d.Entity;
+        const code = d.Code;
         const year = +d.Year;
         const value = +d.BeerValue;
 
         if (!beerDataByYear[year]) beerDataByYear[year] = {};
         beerDataByYear[year][country] = value;
+
+        return {
+          Country: country,
+          Code: code,
+          Year: year,
+          Value: value
+        };
       });
 
       //console.log("beerDataByYear example:", beerDataByYear[2001]); 
@@ -157,6 +198,7 @@
         .on("click", function (event, d) {
           const rawName = d.properties.name;
           const name = nameMap[rawName] || rawName;
+          const currentYear = +yearSlider.property("value");
 
           if (selectedCountry === name) {
             // Clicking again on the same country: reset to region/world
@@ -173,19 +215,21 @@
             g.transition().duration(750).attr("transform", null);
 
             if(currentRegion === "World") {
-              updateWorldGraphs(yearSlider.property("value"));
-              updateConsumptionPieChart(yearSlider.property("value"));
+              updateWorldGraphs(currentYear);
+              updateConsumptionPieChart(currentYear);
+            } else {
+              updateRegionalBarChart(currentRegion, currentYear);
+              updateRegionalTrendLine(currentRegion, currentYear);
             }
-
-            //console.log("Unselected country, returning to region:", currentRegion);
-          } else {
+ 
+          } else { 
             selectedCountry = name;
 
-            d3.select("#world-barplot-container").selectAll("*").remove();
-            d3.select("#world-piechart-container").selectAll("*").remove();
+            d3.select("#first-graph-container").selectAll("*").remove();
+            d3.select("#second-graph-container").selectAll("*").remove();
 
             updateCountryBarChart(name);
-            updateCountryLineChart(name, +yearSlider.property("value"));
+            updateCountryLineChart(name, currentYear);
 
             const [[x0, y0], [x1, y1]] = path.bounds(d);
             const dx = x1 - x0;
@@ -201,7 +245,6 @@
 
             //console.log("Selected country:", selectedCountry);
           }
-
           g.selectAll("path").classed("selected", d2 => {
             const name2 = nameMap[d2.properties.name] || d2.properties.name;
             return name2 === selectedCountry;
@@ -225,14 +268,14 @@
       }
 
       function updateWorldGraphs(year) {
-        const container = d3.select("#world-barplot-container");
+        const container = d3.select("#first-graph-container");
         container.selectAll("*").remove(); // Clear previous graph
 
         container.append("h2")
         .text("Top 10 consumers for the year")
 
         const svg = container.append("svg")
-        .attr("id", "world-barplot")
+        .attr("id", "first-graph")
 
         const margin = { top: 10, right: 20, bottom: 70, left: 70 };
         const width = svg.node().getBoundingClientRect().width - margin.left - margin.right;
@@ -273,18 +316,30 @@
           .attr("y", d => y(d.country))
           .attr("width", d => x(d.value))
           .attr("height", y.bandwidth())
-          .attr("fill", "#a04000"); // Nice amber beer tone
+          .attr("fill", "#a04000")
+          .on("mouseover", function(event, d) {
+            tooltip.style("opacity", 1)
+              .html(`<strong>${d.country}</strong><br/>Value: <strong>${d.value.toFixed(2)} L</strong>`);
+          })
+          .on("mousemove", function(event) {
+            tooltip
+              .style("left", (event.pageX + 10) + "px")
+              .style("top", (event.pageY - 20) + "px");
+          })
+          .on("mouseout", function() {
+            tooltip.style("opacity", 0);
+          });
       }  
       
       function updateConsumptionPieChart(year) {
-        const container = d3.select("#world-piechart-container");
+        const container = d3.select("#second-graph-container");
         container.selectAll("*").remove(); // Clear previous chart
 
         container.append("h2")
         .text("Countries distribution")
 
         const svg = container.append("svg")
-        .attr("id", "consumption-piechart")
+        .attr("id", "second-graph")
 
         const margin = { top: 5, right: 20, bottom: 40, left: 20 };
         const width = svg.node().getBoundingClientRect().width - margin.left - margin.right;
@@ -346,11 +401,11 @@
       }
 
       function updateCountryBarChart(country) {
-        const container = d3.select("#world-barplot-container");
+        const container = d3.select("#first-graph-container");
         container.selectAll("*").remove();
         container.append("h2").text(`Top 5 years for ${country}`);
 
-        const svg = container.append("svg").attr("id", "world-barplot");
+        const svg = container.append("svg").attr("id", "first-graph");
 
         const margin = { top: 10, right: 20, bottom: 70, left: 70 };
         const width = svg.node().getBoundingClientRect().width - margin.left - margin.right;
@@ -378,15 +433,28 @@
           .attr("y", d => y(d.value))
           .attr("width", x.bandwidth())
           .attr("height", d => height - y(d.value))
-          .attr("fill", "#d35400");
+          .attr("fill", "#d35400")
+          .on("mouseover", function(event, d) {
+            tooltip
+              .style("opacity", 1)
+              .html(`Year: <strong>${d.year}</strong><br/>Value: <strong>${d.value.toFixed(2)}L</strong>`);
+          })
+          .on("mousemove", function(event) {
+            tooltip
+              .style("left", (event.pageX + 10) + "px")
+              .style("top", (event.pageY - 20) + "px");
+          })
+          .on("mouseout", function() {
+            tooltip.style("opacity", 0);
+          });
       }
 
       function updateCountryLineChart(country, selectedYear) {
-        const container = d3.select("#world-piechart-container");
+        const container = d3.select("#second-graph-container");
         container.selectAll("*").remove();
         container.append("h2").text(`Trend for ${country} (±5 years from ${selectedYear})`);
 
-        const svg = container.append("svg").attr("id", "consumption-piechart");
+        const svg = container.append("svg").attr("id", "second-graph");
 
         const margin = { top: 10, right: 30, bottom: 40, left: 60 };
         const width = svg.node().getBoundingClientRect().width - margin.left - margin.right;
@@ -438,13 +506,150 @@
           .attr("d", line);
       }
 
+      function updateRegionalBarChart(selectedRegion, selectedYear) {
+        const codes = regions[selectedRegion];
+        if (!codes) return;
+
+        console.log("First few in raw:", beerDataRaw.slice(0,5));
+        console.log("Codes for region:",  codes);
+
+        // Use beerDataRaw instead of beerDataByYear
+        const regionalData = beerDataRaw.filter(d =>
+          codes.includes(d.Code) &&
+          +d.Year === +selectedYear &&
+          !isNaN(+d.Value) &&
+          d.Value !== ""
+        );
+
+        console.log(`Rendering chart for region: ${selectedRegion}, year: ${selectedYear}`);
+        console.log("Filtered data:", regionalData);
+
+        const topCountries = regionalData
+          .sort((a, b) => d3.descending(+a.Value, +b.Value))
+          .slice(0, 10);
+
+        console.log("Top countries:", topCountries);
+
+        const container = d3.select("#first-graph-container");
+        container.selectAll("*").remove();
+        container.append("h2").text(`Biggest consumers from ${selectedRegion} for ${selectedYear}`);
+
+        const svg = container.append("svg").attr("id", "first-graph");
+
+        const width = +svg.node().clientWidth;
+        const height = +svg.node().clientHeight;
+        const margin = { top: 30, right: 20, bottom: 40, left: 100 };
+
+        const x = d3.scaleLinear()
+          .domain([0, d3.max(topCountries, d => +d.Value)])
+          .range([margin.left, width - margin.right]);
+
+        const y = d3.scaleBand()
+          .domain(topCountries.map(d => d.Country))
+          .range([margin.top, height - margin.bottom])
+          .padding(0.1);
+
+        svg.append("g")
+          .attr("transform", `translate(0,${margin.top})`)
+          .call(d3.axisTop(x).ticks(5));
+
+        svg.append("g")
+          .attr("transform", `translate(${margin.left},0)`)
+          .call(d3.axisLeft(y));
+
+        svg.selectAll("rect")
+          .data(topCountries)
+          .enter()
+          .append("rect")
+          .attr("x", margin.left)
+          .attr("y", d => y(d.Country))
+          .attr("width", d => x(+d.Value) - margin.left)
+          .attr("height", y.bandwidth())
+          .attr("fill", "#4682b4")
+          .on("mouseover", function (event, d) {
+            tooltip
+              .style("opacity", 1)
+              .html(`<strong>${d.Country}</strong>: ${d.Value}L`);
+          })
+          .on("mousemove", function (event) {
+            tooltip
+              .style("left", (event.pageX + 10) + "px")
+              .style("top", (event.pageY - 28) + "px");
+          })
+          .on("mouseout",  function () {
+            tooltip.style("opacity", 0);
+            d3.select(this).attr("fill", "#4682b4");
+          });
+      }
+
+      function updateRegionalTrendLine(selectedRegion, selectedYear) {
+        const codes = regions[selectedRegion];
+        if (!codes) return;
+
+        const yearsRange = d3.range(+selectedYear - 5, +selectedYear + 6);
+
+        const trendData = yearsRange.map(year => {
+          const yearlyValues = beerDataRaw.filter(d =>
+            +d.Year === year &&
+            codes.includes(d.Code) &&
+            !isNaN(+d.Value)
+          );
+          return {
+            year: year,
+            value: d3.sum(yearlyValues, d => +d.Value)
+          };
+        });
+
+        const container = d3.select("#second-graph-container");
+        container.selectAll("*").remove();
+        container.append("h2").text(`Consumption trend for ${selectedRegion} (±5 years from ${selectedYear})`);
+
+        const svg = container.append("svg").attr("id", "second-graph");
+
+        const width = +svg.node().clientWidth;
+        const height = +svg.node().clientHeight;
+        const margin = { top: 30, right: 20, bottom: 40, left: 60 };
+
+        const x = d3.scaleLinear()
+          .domain(d3.extent(trendData, d => d.year))
+          .range([margin.left, width - margin.right]);
+
+        const y = d3.scaleLinear()
+          .domain([0, d3.max(trendData, d => d.value)]).nice()
+          .range([height - margin.bottom, margin.top]);
+
+        const line = d3.line()
+          .x(d => x(d.year))
+          .y(d => y(d.value));
+
+        svg.append("path")
+          .datum(trendData)
+          .attr("fill", "none")
+          .attr("stroke", "#2ca02c")
+          .attr("stroke-width", 2)
+          .attr("d", line);
+
+        svg.append("g")
+          .attr("transform", `translate(0,${height - margin.bottom})`)
+          .call(d3.axisBottom(x).tickFormat(d3.format("d")));
+
+        svg.append("g")
+          .attr("transform", `translate(${margin.left},0)`)
+          .call(d3.axisLeft(y));
+      }
+
       yearSlider.on("input", function () {
-        updateMap(this.value);
+        const selectedYear = +this.value;
+        updateMap(selectedYear);
+
         if(!selectedCountry && currentRegion === "World"){
-          updateWorldGraphs(this.value);
-          updateConsumptionPieChart(this.value);
+          updateWorldGraphs(selectedYear);
+          updateConsumptionPieChart(selectedYear);
         } else if (selectedCountry) {
-          updateCountryLineChart(selectedCountry, +this.value);
+          updateCountryLineChart(selectedCountry, selectedYear);
+        } else if (currentRegion && currentRegion !== "World") {
+          updateRegionalBarChart(currentRegion, selectedYear);
+          updateRegionalTrendLine(currentRegion, selectedYear);
         }
       });
 
@@ -453,6 +658,7 @@
         const region = this.value;
         currentRegion = region;
         const zoom = regionZoom[region];
+        const currentYear = yearSlider.property("value");
 
         const oldScale = projection.scale();
         const oldCenter = projection.center();
@@ -477,18 +683,19 @@
             };
           });
 
-        updateMap(yearSlider.property("value"));
+        updateMap(currentYear);
         if(region === "World"){
-          updateWorldGraphs(yearSlider.property("value"));
-          updateConsumptionPieChart(yearSlider.property("value"))
+          updateWorldGraphs(currentYear);
+          updateConsumptionPieChart(currentYear)
         } else {
-          d3.select("#world-barplot-container").selectAll("*").remove();
-          d3.select("#world-piechart-container").selectAll("*").remove();
+          d3.select("#first-graph-container").selectAll("*").remove();
+          d3.select("#second-graph-container").selectAll("*").remove();
+
+          updateRegionalBarChart(region, currentYear);
+          updateRegionalTrendLine(region, currentYear);
         }
       });
     });
-
-    
   </script>
 </body>
 </html>
