@@ -57,19 +57,22 @@
 
   <script>
     const svg = d3.select("#map-svg");
-    const svgNode = svg.node();
-    const width = svgNode.getBoundingClientRect().width;
-    const height = svgNode.getBoundingClientRect().height;
     const tooltip = d3.select("#tooltip");
 
     let selectedCountry = null;
-    let currentRegion = "World";
+    let currentRegion = "World";    
+
+    /* Stari prikaz, nije responzivan
+    const svgNode = svg.node();
+    const width = svgNode.getBoundingClientRect().width;
+    const height = svgNode.getBoundingClientRect().height;
 
     const projection = d3.geoMercator()
       .scale(160)
       .translate([width / 2, height / 1.5]);
 
     const path = d3.geoPath().projection(projection);
+    */
 
     const regionZoom = {
       "World": { scale: 160, center: [0, 20] },
@@ -148,6 +151,20 @@
       d3.json("https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson"),
       d3.csv("beer-consumption-per-person.csv")
     ]).then(([geoData, beerData]) => {
+
+      // Nova verzija prikaza svijeta u svrhu prilagodbe ekranu
+      const svgNode = svg.node();
+      const width = svgNode.getBoundingClientRect().width;
+      const height = svgNode.getBoundingClientRect().height;
+
+      svg
+        .attr("viewBox", `0 0 ${width} ${height}`)
+        .attr("preserveAspectRatio", "xMidYMid meet");
+
+      const projection = d3.geoNaturalEarth1().fitSize([width, height], geoData);
+      const path = d3.geoPath().projection(projection);   
+      // kraj dodanog dijela   
+
       beerDataRaw = beerData.map(d => {
         const country = d.Entity;
         const code = d.Code;
@@ -319,7 +336,7 @@
           .attr("fill", "#a04000")
           .on("mouseover", function(event, d) {
             tooltip.style("opacity", 1)
-              .html(`<strong>${d.country}</strong><br/>Value: <strong>${d.value.toFixed(2)} L</strong>`);
+              .html(`<strong>${d.country}</strong><br/> <strong>${d.value.toFixed(2)} L</strong>`);
           })
           .on("mousemove", function(event) {
             tooltip
@@ -437,7 +454,7 @@
           .on("mouseover", function(event, d) {
             tooltip
               .style("opacity", 1)
-              .html(`Year: <strong>${d.year}</strong><br/>Value: <strong>${d.value.toFixed(2)}L</strong>`);
+              .html(`Year: <strong>${d.year}</strong><br/> <strong>${d.value.toFixed(2)}L</strong>`);
           })
           .on("mousemove", function(event) {
             tooltip
